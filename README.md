@@ -1,36 +1,52 @@
-Travel Planner Agent
+# Travel Planner Agent
 
-A simple AI chat app for travel planning, built with Cloudflare Workers. Ask for itineraries (e.g., "Plan a weekend in Tokyo"), and it streams responses using Llama 3.1 AI.
-Live Demo: travel-planner-simple.elinorcsy.workers.dev
+An AI chat app for travel planning, built on Cloudflare's edge platform. Ask for itineraries, hotel suggestions, or travel tips — responses stream live using Llama 3.1.
 
-Features
+**Live Demo:** https://travel-planner-simple.elinorcsy.workers.dev
 
-Real-time chat with AI-generated travel tips and plans.
+## Features
 
-Persistent conversation history.
+- Real-time streaming responses via SSE
+- Per-user persistent conversation history (each browser gets its own isolated session)
+- Markdown rendering — bold, bullet points formatted in the UI
+- Edge-deployed globally via Cloudflare Workers
 
-Edge-deployed for fast global access.
+## Architecture
 
-Tech
+- **Cloudflare Workers** — handles HTTP routing and serves static assets
+- **Durable Objects** — one instance per user (keyed by a `localStorage` UUID), each with its own SQLite-backed conversation history
+- **Workers AI** — runs Llama 3.1 8B at the edge via the `AI` binding
+- **Vercel AI SDK (`ai`) + `workers-ai-provider`** — `streamText` with SSE streaming back to the client
+- **Vanilla JS frontend** — no framework, served from `public/`
 
-Cloudflare Agents & Workers AI (Llama 3.1).
-Vanilla JS frontend.
+## Setup
 
-Setup
+Requires Node.js v20+ 
 
-Clone: git clone https://github.com/YOUR_USERNAME/travel-planner-agent.git && cd travel-planner-agent 
+```bash
+git clone https://github.com/YOUR_USERNAME/travel-planner-agent.git
+cd travel-planner-agent
+npm install
+```
 
-Install: npm install
+**Dev:**
+```bash
+npx wrangler dev --remote
+```
+Open http://localhost:8787
 
-Dev: npx wrangler dev --remote (open http://localhost:8787)
+**Deploy:**
+```bash
+npx wrangler deploy
+```
 
-Deploy: npx wrangler deploy
+## Structure
 
-Usage
-Load the app, type a query, and send. Responses stream live.
+```
+public/       # HTML + JS frontend
+src/
+  server.js            # Worker entry point, request routing
+  travelPlannerAgent.js # AIChatAgent subclass — streaming AI logic
+wrangler.jsonc         # Cloudflare config (DO bindings, AI, Assets)
+```
 
-Structure
-
-public/: HTML/JS UI.
-src/: Worker & agent code.
-wrangler.jsonc: Config.

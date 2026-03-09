@@ -1,5 +1,5 @@
 import { AIChatAgent } from "agents/ai-chat-agent";
-import { streamText, convertToModelMessages } from "ai";  // Add convertToModelMessages
+import { streamText } from "ai";
 import { createWorkersAI } from "workers-ai-provider";
 
 export class TravelPlannerAgent extends AIChatAgent {
@@ -9,13 +9,19 @@ export class TravelPlannerAgent extends AIChatAgent {
       const workersai = createWorkersAI({ binding: this.env.AI });
       if (!workersai) throw new Error("AI binding unavailable");
 
-      // Convert UI messages to model format for streamText
-      const modelMessages = convertToModelMessages(this.messages);
+      // Convert UI messages to model format for streamText (handles both ai@5 and ai@6 formats)
+      const modelMessages = this.messages.map(msg => ({
+        role: msg.role,
+        content: msg.parts
+          ? msg.parts.filter(p => p.type === 'text').map(p => p.text).join('')
+          : (typeof msg.content === 'string' ? msg.content : ''),
+      }));
 
       const result = await streamText({
         system: `You are a friendly travel assistant. Provide itineraries, travel tips, hotel or flight suggestions, and destination insights in a conversational tone.`,
         messages: modelMessages,  // Use converted messages
         model: workersai("@cf/meta/llama-3.1-8b-instruct-fast"),
+        maxOutputTokens: 2048,
         onFinish,
       });
 
@@ -71,9 +77,9 @@ export class TravelPlannerAgent extends AIChatAgent {
 
         if (!userMessage) return new Response("Missing user message in body", { status: 400 });
 
-        // Append user message to history (persists automatically)
-        this.messages.push({ role: "user", content: userMessage });
-        await this.saveMessages(this.messages);
+        // Append user message to history and persist (persistMessages doesn't trigger onChatMessage)
+        this.messages.push({ id: crypto.randomUUID(), role: "user", parts: [{ type: "text", text: userMessage }] });
+        await this.persistMessages(this.messages);
 
         console.log("Chat message appended:", userMessage);  // Debug in logs
 
